@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EntityType {
+  PERSON
+  LOCATION
+  EVENT
+  MEETING
+  OTHER
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  firstName String?
+  lastName  String?
+  clerkId   String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  graphSpaces GraphSpace[]
+}
+
+model GraphSpace {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [clerkId])
+  textualItems TextualItem[]
+
+  @@index([userId])
+}
+
+model TextualItem {
+  id            String    @id @default(cuid())
+  graphSpaceId  String
+  rawText       String    @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  graphSpace    GraphSpace @relation(fields: [graphSpaceId], references: [id])
+  entities      Entity[]   // Relation to Entity model
+
+  @@index([graphSpaceId])
+}
+
+model Entity {
+  id           String     @id @default(cuid())
+  textItemId   String
+  entityType   EntityType // Enum for predefined types
+  value        String     // The actual text of the entity e.g. "John Doe"
+  startPosition Int?       // Optional: start offset in rawText
+  endPosition  Int?       // Optional: end offset in rawText
+  // metadata  Json?      // Optional: for other details from NLP
+
+  textItem     TextualItem @relation(fields: [textItemId], references: [id])
+  sourceEdges  Edge[]      @relation("SourceEntity") // Edges where this entity is the source
+  targetEdges  Edge[]      @relation("TargetEntity") // Edges where this entity is the target
+
+  @@index([textItemId])
+  @@index([entityType])
+}
+
+model Edge {
+  id              String  @id @default(cuid())
+  sourceEntityId  String
+  targetEntityId  String
+  relationType    String  // e.g., "attended", "hosted_by", "located_in", "related_to"
+  confidenceScore Float?  // Optional: score from NLP indicating confidence
+
+  sourceEntity    Entity  @relation("SourceEntity", fields: [sourceEntityId], references: [id])
+  targetEntity    Entity  @relation("TargetEntity", fields: [targetEntityId], references: [id])
+
+  @@index([sourceEntityId])
+  @@index([targetEntityId])
+  @@index([relationType])
+}
