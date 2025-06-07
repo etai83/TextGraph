@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  firstName String?
+  lastName  String?
+  clerkId   String    @unique // To store Clerk's user ID
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  graphSpaces GraphSpace[] // Relation to GraphSpace model
+}
+
+model GraphSpace {
+  id          String    @id @default(cuid())
+  userId      String    // This will map to User.clerkId
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [clerkId])
+  textualItems TextualItem[]
+
+  @@index([userId])
+}
+
+model TextualItem {
+  id            String    @id @default(cuid())
+  graphSpaceId  String
+  rawText       String    @db.Text // Use Text type for potentially long strings
+  // metadata    Json?   // Prisma 'Json' type can be used for flexible metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  graphSpace    GraphSpace @relation(fields: [graphSpaceId], references: [id])
+  // entities   Entity[] // Relation to Entity model (to be added in M3)
+
+  @@index([graphSpaceId])
+}
